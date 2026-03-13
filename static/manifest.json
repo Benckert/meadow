@@ -1,0 +1,16 @@
+{
+	"name": "Meadow",
+	"short_name": "Meadow",
+	"description": "Interactive music generator with reactive visuals",
+	"start_url": "/",
+	"display": "standalone",
+	"theme_color": "#102C26",
+	"background_color": "#102C26",
+	"icons": [
+		{
+			"src": "/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml"
+		}
+	]
+}

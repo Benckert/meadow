@@ -2,23 +2,44 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import Grid from './Grid.svelte';
+	import ControlPanel from './ControlPanel.svelte';
+	import FeatureUnlock from './FeatureUnlock.svelte';
 	import { AudioEngine } from '$lib/engine/audio/audio-engine';
 	import { VisualRenderer } from '$lib/engine/visual/renderer';
 	import { NoteVisualizer } from '$lib/engine/visual/note-visualizer';
+	import { GenerativeController } from '$lib/engine/audio/generative-controller';
+	import { NatureController } from '$lib/engine/audio/nature/nature-controller';
+	import { NatureParticles } from '$lib/engine/visual/nature-particles';
+	import { FlowField } from '$lib/engine/visual/flow-field';
 	import { eventBus } from '$lib/stores/event-bus';
 	import { uiState } from '$lib/stores/ui-state.svelte';
-	import type { NoteEvent } from '$lib/stores/types';
+	import type { NoteEvent, ThemeId } from '$lib/stores/types';
+	import { getTheme } from '$lib/themes';
+	import * as Tone from 'tone';
 
 	let canvasContainer: HTMLElement;
 	let audioEngine: AudioEngine;
 	let visualRenderer: VisualRenderer;
 	let noteVisualizer: NoteVisualizer;
+	let generativeController: GenerativeController;
+	let natureController: NatureController | null = null;
+	let natureParticles: NatureParticles | null = null;
+	let flowField: FlowField;
 	let running = false;
+	let showControls = $state(false);
+	let generativeActive = $state(false);
+	let natureActive = $state(false);
 
 	async function initAudio(): Promise<void> {
 		if (uiState.audioInitialized) return;
 		await audioEngine.init();
 		uiState.audioInitialized = true;
+
+		// Now that audio is initialized, create nature controller
+		natureController = new NatureController(
+			Tone.getDestination() as unknown as Tone.InputNode,
+			uiState.currentTheme
+		);
 	}
 
 	function onNoteTrigger(event: NoteEvent): void {
@@ -27,6 +48,82 @@
 
 	function onFirstInteraction(): void {
 		initAudio();
+	}
+
+	function handlePlayPause(): void {
+		if (generativeActive) {
+			generativeController.stop();
+			generativeActive = false;
+			uiState.isPlaying = false;
+		} else {
+			generativeController.start(uiState.bpm);
+			generativeActive = true;
+			uiState.isPlaying = true;
+		}
+	}
+
+	function handleToggleGenerative(): void {
+		handlePlayPause();
+	}
+
+	function handleToggleNature(): void {
+		if (!natureController) return;
+		if (natureActive) {
+			natureController.stop();
+			natureParticles?.enableRain(false);
+			natureParticles?.enableWind(false);
+			natureActive = false;
+		} else {
+			natureController.start();
+			// Enable visual effects based on theme
+			const theme = getTheme(uiState.currentTheme);
+			if (uiState.currentTheme === 'ocean-depths') {
+				natureParticles?.enableRain(true);
+				natureParticles?.enableWind(true);
+			} else if (uiState.currentTheme === 'sunset-canyon') {
+				natureParticles?.enableWind(true);
+			} else {
+				natureParticles?.enableWind(true);
+			}
+			natureActive = true;
+		}
+	}
+
+	function handleTempoChange(bpm: number): void {
+		generativeController?.setTempo(bpm);
+	}
+
+	function handleScaleChange(scale: string): void {
+		generativeController?.setScale(scale);
+	}
+
+	function handleVolumeChange(vol: number): void {
+		Tone.getDestination().volume.value = vol === 0 ? -Infinity : 20 * Math.log10(vol);
+	}
+
+	function handleFeatureUnlock(feature: string): void {
+		if (feature === 'controls') {
+			showControls = true;
+		}
+	}
+
+	function handleThemeChange(themeId: ThemeId): void {
+		visualRenderer?.setTheme(themeId);
+		noteVisualizer?.setTheme(themeId);
+		natureController?.setTheme(themeId);
+
+		// Update CSS custom properties
+		if (browser) {
+			const theme = getTheme(themeId);
+			const root = document.documentElement;
+			root.style.setProperty('--bg-primary', theme.colors.background[0]);
+			root.style.setProperty('--bg-panel', theme.colors.panel);
+			root.style.setProperty('--color-primary', theme.colors.primary);
+			root.style.setProperty('--color-secondary', theme.colors.secondary);
+			root.style.setProperty('--color-accent', theme.colors.accent);
+			root.style.setProperty('--glass-bg', theme.colors.glassTint);
+			root.style.setProperty('--glass-border', `rgba(255, 255, 255, 0.12)`);
+		}
 	}
 
 	onMount(() => {
@@ -39,7 +136,12 @@
 			uiState.currentTheme
 		);
 
-		// Start animation loop for note visualizer
+		generativeController = new GenerativeController();
+		flowField = new FlowField();
+
+		natureParticles = new NatureParticles(visualRenderer.scene);
+
+		// Main animation loop
 		running = true;
 		let lastTime = performance.now();
 		function animate(): void {
@@ -48,11 +150,14 @@
 			const dt = (now - lastTime) / 1000;
 			lastTime = now;
 			noteVisualizer.update(dt);
+			flowField.update(dt);
+			natureParticles?.update(dt);
 			requestAnimationFrame(animate);
 		}
 		requestAnimationFrame(animate);
 
 		eventBus.on('note:trigger', onNoteTrigger);
+		eventBus.on('theme:change', handleThemeChange);
 
 		// Init audio on first user gesture
 		document.addEventListener('pointerdown', onFirstInteraction, { once: true });
@@ -62,10 +167,14 @@
 	onDestroy(() => {
 		running = false;
 		eventBus.off('note:trigger', onNoteTrigger);
+		eventBus.off('theme:change', handleThemeChange);
 		if (browser) {
 			document.removeEventListener('pointerdown', onFirstInteraction);
 			document.removeEventListener('keydown', onFirstInteraction);
 		}
+		natureParticles?.dispose();
+		natureController?.dispose();
+		generativeController?.dispose();
 		noteVisualizer?.dispose();
 		visualRenderer?.dispose();
 		audioEngine?.dispose();
@@ -81,6 +190,23 @@
 			scaleName={uiState.activeScale}
 		/>
 	</div>
+
+	{#if showControls}
+		<ControlPanel
+			isPlaying={generativeActive}
+			{generativeActive}
+			{natureActive}
+			onplayPause={handlePlayPause}
+			onToggleGenerative={handleToggleGenerative}
+			onToggleNature={handleToggleNature}
+			onTempoChange={handleTempoChange}
+			onScaleChange={handleScaleChange}
+			onVolumeChange={handleVolumeChange}
+		/>
+	{/if}
+
+	<FeatureUnlock onunlock={handleFeatureUnlock} />
+
 	{#if !uiState.audioInitialized}
 		<div class="tap-hint">
 			<div class="tap-circle"></div>
