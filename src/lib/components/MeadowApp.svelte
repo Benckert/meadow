@@ -4,6 +4,7 @@
 	import Grid from './Grid.svelte';
 	import ControlPanel from './ControlPanel.svelte';
 	import FeatureUnlock from './FeatureUnlock.svelte';
+	import AccessibilityLayer from './AccessibilityLayer.svelte';
 	import { AudioEngine } from '$lib/engine/audio/audio-engine';
 	import { VisualRenderer } from '$lib/engine/visual/renderer';
 	import { NoteVisualizer } from '$lib/engine/visual/note-visualizer';
@@ -11,6 +12,8 @@
 	import { NatureController } from '$lib/engine/audio/nature/nature-controller';
 	import { NatureParticles } from '$lib/engine/visual/nature-particles';
 	import { FlowField } from '$lib/engine/visual/flow-field';
+	import { QualityManager } from '$lib/engine/visual/quality-manager';
+	import { mapGridToNotes } from '$lib/engine/audio/scales';
 	import { eventBus } from '$lib/stores/event-bus';
 	import { uiState } from '$lib/stores/ui-state.svelte';
 	import type { NoteEvent, ThemeId } from '$lib/stores/types';
@@ -25,10 +28,14 @@
 	let natureController: NatureController | null = null;
 	let natureParticles: NatureParticles | null = null;
 	let flowField: FlowField;
+	let qualityManager: QualityManager;
 	let running = false;
 	let showControls = $state(false);
 	let generativeActive = $state(false);
 	let natureActive = $state(false);
+
+	// Build note map for accessibility layer
+	const noteMap = $derived(mapGridToNotes(uiState.gridSize[0], uiState.gridSize[1], uiState.activeScale));
 
 	async function initAudio(): Promise<void> {
 		if (uiState.audioInitialized) return;
@@ -76,7 +83,6 @@
 		} else {
 			natureController.start();
 			// Enable visual effects based on theme
-			const theme = getTheme(uiState.currentTheme);
 			if (uiState.currentTheme === 'ocean-depths') {
 				natureParticles?.enableRain(true);
 				natureParticles?.enableWind(true);
@@ -138,17 +144,21 @@
 
 		generativeController = new GenerativeController();
 		flowField = new FlowField();
+		qualityManager = new QualityManager();
 
 		natureParticles = new NatureParticles(visualRenderer.scene);
 
-		// Main animation loop
+		// Main animation loop with quality monitoring
 		running = true;
 		let lastTime = performance.now();
 		function animate(): void {
 			if (!running) return;
 			const now = performance.now();
-			const dt = (now - lastTime) / 1000;
+			const dtMs = now - lastTime;
+			const dt = dtMs / 1000;
 			lastTime = now;
+
+			qualityManager.recordFrame(dtMs);
 			noteVisualizer.update(dt);
 			flowField.update(dt);
 			natureParticles?.update(dt);
@@ -206,6 +216,20 @@
 	{/if}
 
 	<FeatureUnlock onunlock={handleFeatureUnlock} />
+
+	<AccessibilityLayer
+		cols={uiState.gridSize[0]}
+		rows={uiState.gridSize[1]}
+		{noteMap}
+		isPlaying={generativeActive}
+		{generativeActive}
+		{natureActive}
+		bpm={uiState.bpm}
+		scaleName={uiState.activeScale}
+		onplayPause={handlePlayPause}
+		onToggleGenerative={handleToggleGenerative}
+		onToggleNature={handleToggleNature}
+	/>
 
 	{#if !uiState.audioInitialized}
 		<div class="tap-hint">
