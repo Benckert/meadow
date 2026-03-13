@@ -31,7 +31,6 @@
 	let qualityManager: QualityManager;
 	let running = false;
 	let showControls = $state(false);
-	let generativeActive = $state(false);
 	let natureActive = $state(false);
 
 	// Build note map for accessibility layer
@@ -58,13 +57,11 @@
 	}
 
 	function handlePlayPause(): void {
-		if (generativeActive) {
+		if (uiState.isPlaying) {
 			generativeController.stop();
-			generativeActive = false;
 			uiState.isPlaying = false;
 		} else {
 			generativeController.start(uiState.bpm);
-			generativeActive = true;
 			uiState.isPlaying = true;
 		}
 	}
@@ -83,13 +80,9 @@
 		} else {
 			natureController.start();
 			// Enable visual effects based on theme
+			natureParticles?.enableWind(true);
 			if (uiState.currentTheme === 'ocean-depths') {
 				natureParticles?.enableRain(true);
-				natureParticles?.enableWind(true);
-			} else if (uiState.currentTheme === 'sunset-canyon') {
-				natureParticles?.enableWind(true);
-			} else {
-				natureParticles?.enableWind(true);
 			}
 			natureActive = true;
 		}
@@ -203,8 +196,8 @@
 
 	{#if showControls}
 		<ControlPanel
-			isPlaying={generativeActive}
-			{generativeActive}
+			isPlaying={uiState.isPlaying}
+			generativeActive={uiState.isPlaying}
 			{natureActive}
 			onplayPause={handlePlayPause}
 			onToggleGenerative={handleToggleGenerative}
@@ -221,8 +214,8 @@
 		cols={uiState.gridSize[0]}
 		rows={uiState.gridSize[1]}
 		{noteMap}
-		isPlaying={generativeActive}
-		{generativeActive}
+		isPlaying={uiState.isPlaying}
+		generativeActive={uiState.isPlaying}
 		{natureActive}
 		bpm={uiState.bpm}
 		scaleName={uiState.activeScale}

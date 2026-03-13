@@ -8,6 +8,7 @@ import type { ThemeConfig } from '$lib/stores/types';
 export class ThemeTransition {
 	private startColors: Map<string, THREE.Color> = new Map();
 	private targetColors: Map<string, THREE.Color> = new Map();
+	private resultColors: Map<string, THREE.Color> = new Map(); // cached results
 	private progress = 1; // 1 = complete
 	private duration: number;
 
@@ -20,7 +21,6 @@ export class ThemeTransition {
 		this.startColors.clear();
 		this.targetColors.clear();
 
-		// Map color pairs
 		const colorKeys = ['background_0', 'background_1', 'primary', 'secondary', 'accent'];
 		const fromColors = [
 			from.colors.background[0], from.colors.background[1],
@@ -32,8 +32,13 @@ export class ThemeTransition {
 		];
 
 		for (let i = 0; i < colorKeys.length; i++) {
-			this.startColors.set(colorKeys[i], new THREE.Color(fromColors[i]));
-			this.targetColors.set(colorKeys[i], new THREE.Color(toColors[i]));
+			const key = colorKeys[i];
+			this.startColors.set(key, new THREE.Color(fromColors[i]));
+			this.targetColors.set(key, new THREE.Color(toColors[i]));
+			// Reuse existing cached Color or create one
+			if (!this.resultColors.has(key)) {
+				this.resultColors.set(key, new THREE.Color());
+			}
 		}
 	}
 
@@ -50,11 +55,11 @@ export class ThemeTransition {
 
 		const start = this.startColors.get(key);
 		const target = this.targetColors.get(key);
-		if (!start || !target) return null;
+		const result = this.resultColors.get(key);
+		if (!start || !target || !result) return null;
 
-		const color = new THREE.Color();
-		color.lerpColors(start, target, this.easeInOut(this.progress));
-		return color;
+		result.lerpColors(start, target, this.easeInOut(this.progress));
+		return result;
 	}
 
 	private easeInOut(t: number): number {

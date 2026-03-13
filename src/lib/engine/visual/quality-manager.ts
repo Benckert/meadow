@@ -7,11 +7,13 @@ import { detectInitialQuality } from './device-detect';
  * Uses hysteresis to prevent rapid oscillation between tiers.
  */
 export class QualityManager {
-	private frameTimes: number[] = [];
+	private frameTimes: Float32Array;
+	private writeIndex = 0;
+	private frameCount = 0;
 	private readonly WINDOW_SIZE = 60;
 	private readonly FRAME_BUDGET = 16.67; // 60fps target
-	private readonly DOWNGRADE_THRESHOLD = 120; // consecutive slow frames to trigger downgrade
-	private readonly UPGRADE_THRESHOLD = 300; // consecutive fast frames to trigger upgrade
+	private readonly DOWNGRADE_THRESHOLD = 120;
+	private readonly UPGRADE_THRESHOLD = 300;
 	private slowFrameCount = 0;
 	private fastFrameCount = 0;
 
@@ -20,19 +22,23 @@ export class QualityManager {
 	private static readonly LEVELS: QualityLevel[] = ['high', 'medium', 'low'];
 
 	constructor() {
+		this.frameTimes = new Float32Array(this.WINDOW_SIZE);
 		this.currentLevel = detectInitialQuality();
 	}
 
 	/** Call once per frame with the frame's delta time in ms */
 	recordFrame(deltaTimeMs: number): void {
-		this.frameTimes.push(deltaTimeMs);
-		if (this.frameTimes.length > this.WINDOW_SIZE) {
-			this.frameTimes.shift();
+		this.frameTimes[this.writeIndex] = deltaTimeMs;
+		this.writeIndex = (this.writeIndex + 1) % this.WINDOW_SIZE;
+		this.frameCount++;
+
+		if (this.frameCount < this.WINDOW_SIZE) return;
+
+		let sum = 0;
+		for (let i = 0; i < this.WINDOW_SIZE; i++) {
+			sum += this.frameTimes[i];
 		}
-
-		if (this.frameTimes.length < this.WINDOW_SIZE) return;
-
-		const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+		const avg = sum / this.WINDOW_SIZE;
 
 		if (avg > this.FRAME_BUDGET * 1.2) {
 			this.slowFrameCount++;
@@ -60,7 +66,7 @@ export class QualityManager {
 		const idx = QualityManager.LEVELS.indexOf(this.currentLevel);
 		if (idx < QualityManager.LEVELS.length - 1) {
 			this.currentLevel = QualityManager.LEVELS[idx + 1];
-			this.frameTimes = [];
+			this.resetFrameData();
 			eventBus.emit('quality:change', this.currentLevel);
 		}
 	}
@@ -69,15 +75,21 @@ export class QualityManager {
 		const idx = QualityManager.LEVELS.indexOf(this.currentLevel);
 		if (idx > 0) {
 			this.currentLevel = QualityManager.LEVELS[idx - 1];
-			this.frameTimes = [];
+			this.resetFrameData();
 			eventBus.emit('quality:change', this.currentLevel);
 		}
+	}
+
+	private resetFrameData(): void {
+		this.frameTimes.fill(0);
+		this.writeIndex = 0;
+		this.frameCount = 0;
 	}
 
 	setLevel(level: QualityLevel): void {
 		if (level !== this.currentLevel) {
 			this.currentLevel = level;
-			this.frameTimes = [];
+			this.resetFrameData();
 			this.slowFrameCount = 0;
 			this.fastFrameCount = 0;
 			eventBus.emit('quality:change', this.currentLevel);

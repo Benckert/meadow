@@ -8,8 +8,8 @@ export class RainSynth {
 	private destination: Tone.InputNode;
 	private active = false;
 	private intensity = 0.5; // 0-1, controls drop density
-	private schedulerId: number | null = null;
 	private drops: RainDrop[] = [];
+	private pendingTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly MAX_DROPS = 8;
 
 	constructor(destination: Tone.InputNode) {
@@ -29,9 +29,9 @@ export class RainSynth {
 
 	stop(): void {
 		this.active = false;
-		if (this.schedulerId !== null) {
-			Tone.getTransport().clear(this.schedulerId);
-			this.schedulerId = null;
+		if (this.pendingTimeout !== null) {
+			clearTimeout(this.pendingTimeout);
+			this.pendingTimeout = null;
 		}
 	}
 
@@ -48,7 +48,7 @@ export class RainSynth {
 			// Poisson-distributed timing based on intensity
 			const meanInterval = 0.05 + (1 - this.intensity) * 0.4; // 50ms-450ms
 			const delay = -Math.log(Math.random()) * meanInterval;
-			setTimeout(scheduleDrop, delay * 1000);
+			this.pendingTimeout = setTimeout(scheduleDrop, delay * 1000);
 		};
 
 		scheduleDrop();

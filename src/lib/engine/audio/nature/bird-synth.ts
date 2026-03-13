@@ -73,7 +73,7 @@ class BirdVoice {
 	private envelope: Tone.AmplitudeEnvelope;
 	private output: Tone.Gain;
 	private active = false;
-	private timeoutId: ReturnType<typeof setTimeout> | null = null;
+	private pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 	constructor(species: BirdSpecies, destination: Tone.InputNode) {
 		this.species = species;
@@ -116,10 +116,10 @@ class BirdVoice {
 
 	stop(): void {
 		this.active = false;
-		if (this.timeoutId !== null) {
-			clearTimeout(this.timeoutId);
-			this.timeoutId = null;
+		for (const id of this.pendingTimeouts) {
+			clearTimeout(id);
 		}
+		this.pendingTimeouts.length = 0;
 	}
 
 	private schedulePhrase(): void {
@@ -127,9 +127,9 @@ class BirdVoice {
 
 		const pause = this.species.phrasePause + (Math.random() - 0.5) * this.species.phrasePause;
 
-		this.timeoutId = setTimeout(() => {
+		this.pendingTimeouts.push(setTimeout(() => {
 			this.playPhrase();
-		}, pause * 1000);
+		}, pause * 1000));
 	}
 
 	private playPhrase(): void {
@@ -141,17 +141,17 @@ class BirdVoice {
 
 		let delay = 0;
 		for (let i = 0; i < Math.max(1, chirpCount); i++) {
-			setTimeout(() => {
+			this.pendingTimeouts.push(setTimeout(() => {
 				if (!this.active) return;
 				this.chirp();
-			}, delay * 1000);
+			}, delay * 1000));
 			delay += this.species.chirpDuration + 0.05 + Math.random() * 0.08;
 		}
 
 		// Schedule next phrase after this one finishes
-		setTimeout(() => {
+		this.pendingTimeouts.push(setTimeout(() => {
 			this.schedulePhrase();
-		}, (delay + 0.5) * 1000);
+		}, (delay + 0.5) * 1000));
 	}
 
 	private chirp(): void {

@@ -22,37 +22,41 @@ export class MarkovMelody {
 		[-4, 0.005] // big leap down (rare)
 	];
 
+	// Pre-allocated scratch arrays to avoid per-call allocation
+	private readonly weightsBuf: number[];
+
 	constructor(notes: string[], temperature: number = 0.5) {
 		this.notes = notes;
-		this.currentIndex = Math.floor(notes.length / 2); // Start in the middle
+		this.currentIndex = Math.floor(notes.length / 2);
 		this.temperature = Math.max(0.1, Math.min(2.0, temperature));
+		this.weightsBuf = new Array(this.transitionWeights.length);
 	}
 
 	nextNote(): string {
-		const weights = this.transitionWeights.map(([offset, weight]) => {
-			const targetIndex = this.currentIndex + offset;
-			// Penalize out-of-range targets
-			if (targetIndex < 0 || targetIndex >= this.notes.length) {
-				return 0;
-			}
-			// Apply temperature: higher = more random, lower = more predictable
-			return Math.pow(weight, 1 / this.temperature);
-		});
+		const len = this.transitionWeights.length;
+		let total = 0;
 
-		// Normalize weights
-		const total = weights.reduce((a, b) => a + b, 0);
+		for (let i = 0; i < len; i++) {
+			const [offset, weight] = this.transitionWeights[i];
+			const targetIndex = this.currentIndex + offset;
+			if (targetIndex < 0 || targetIndex >= this.notes.length) {
+				this.weightsBuf[i] = 0;
+			} else {
+				const w = Math.pow(weight, 1 / this.temperature);
+				this.weightsBuf[i] = w;
+				total += w;
+			}
+		}
+
 		if (total === 0) {
-			// Fallback: pick a random note
 			this.currentIndex = Math.floor(Math.random() * this.notes.length);
 			return this.notes[this.currentIndex];
 		}
 
-		const normalized = weights.map((w) => w / total);
-
-		// Weighted random selection
-		let r = Math.random();
-		for (let i = 0; i < normalized.length; i++) {
-			r -= normalized[i];
+		// Weighted random selection (inline normalization)
+		let r = Math.random() * total;
+		for (let i = 0; i < len; i++) {
+			r -= this.weightsBuf[i];
 			if (r <= 0) {
 				const offset = this.transitionWeights[i][0];
 				this.currentIndex = Math.max(
@@ -66,10 +70,6 @@ export class MarkovMelody {
 		return this.notes[this.currentIndex];
 	}
 
-	/**
-	 * Influence the Markov chain state based on user input.
-	 * Moves the current position closer to the played note.
-	 */
 	influence(note: string): void {
 		const idx = this.notes.indexOf(note);
 		if (idx !== -1) {
