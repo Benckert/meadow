@@ -1,0 +1,56 @@
+/* CSS Reset */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html, body {
+	height: 100%;
+	overflow: hidden;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+/* Glassmorphism design tokens */
+:root {
+	/* Forest at Dawn - default theme */
+	--bg-primary: #102C26;
+	--bg-panel: rgba(18, 68, 56, 0.6);
+	--color-primary: #155435;
+	--color-secondary: #41915B;
+	--color-accent: #F6E6BB;
+	--text-primary: rgba(246, 230, 187, 0.9);
+	--text-secondary: rgba(246, 230, 187, 0.6);
+
+	/* Glass tokens */
+	--glass-bg: rgba(18, 68, 56, 0.35);
+	--glass-blur: 12px;
+	--glass-border: rgba(246, 230, 187, 0.12);
+	--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+	/* Spacing scale */
+	--space-xs: 2px;
+	--space-sm: 5px;
+	--space-md: 8px;
+	--space-lg: 13px;
+	--space-xl: 21px;
+	--space-2xl: 34px;
+	--space-3xl: 55px;
+
+	/* Transitions */
+	--transition-fast: 120ms ease-out;
+	--transition-medium: 300ms ease-out;
+	--transition-slow: 600ms ease-out;
+}
