@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import Grid from './Grid.svelte';
 	import { AudioEngine } from '$lib/engine/audio/audio-engine';
 	import { VisualRenderer } from '$lib/engine/visual/renderer';
@@ -12,6 +13,7 @@
 	let audioEngine: AudioEngine;
 	let visualRenderer: VisualRenderer;
 	let noteVisualizer: NoteVisualizer;
+	let running = false;
 
 	async function initAudio(): Promise<void> {
 		if (uiState.audioInitialized) return;
@@ -25,8 +27,6 @@
 
 	function onFirstInteraction(): void {
 		initAudio();
-		document.removeEventListener('pointerdown', onFirstInteraction);
-		document.removeEventListener('keydown', onFirstInteraction);
 	}
 
 	onMount(() => {
@@ -40,7 +40,7 @@
 		);
 
 		// Start animation loop for note visualizer
-		let running = true;
+		running = true;
 		let lastTime = performance.now();
 		function animate(): void {
 			if (!running) return;
@@ -57,16 +57,15 @@
 		// Init audio on first user gesture
 		document.addEventListener('pointerdown', onFirstInteraction, { once: true });
 		document.addEventListener('keydown', onFirstInteraction, { once: true });
-
-		return () => {
-			running = false;
-		};
 	});
 
 	onDestroy(() => {
+		running = false;
 		eventBus.off('note:trigger', onNoteTrigger);
-		document.removeEventListener('pointerdown', onFirstInteraction);
-		document.removeEventListener('keydown', onFirstInteraction);
+		if (browser) {
+			document.removeEventListener('pointerdown', onFirstInteraction);
+			document.removeEventListener('keydown', onFirstInteraction);
+		}
 		noteVisualizer?.dispose();
 		visualRenderer?.dispose();
 		audioEngine?.dispose();
