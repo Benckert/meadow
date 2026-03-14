@@ -40,6 +40,8 @@
 		border: 1px solid var(--glass-border);
 		border-radius: 12px;
 		min-width: 160px;
+		max-height: 280px;
+		overflow-y: auto;
 	}
 
 	.scale-option {
@@ -63,6 +65,11 @@
 	.scale-option.selected {
 		background: rgba(255, 255, 255, 0.12);
 		color: var(--color-accent);
+	}
+
+	.scale-option:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: -2px;
 	}
 
 	.scale-name {

@@ -1,28 +1,24 @@
 <script lang="ts">
 	let {
 		isPlaying = false,
-		generativeActive = false,
 		natureActive = false,
 		bpm = 90,
 		scaleName = '',
 		onplayPause,
-		onToggleGenerative,
 		onToggleNature
 	}: {
 		isPlaying?: boolean;
-		generativeActive?: boolean;
 		natureActive?: boolean;
 		bpm?: number;
 		scaleName?: string;
 		onplayPause?: () => void;
-		onToggleGenerative?: () => void;
 		onToggleNature?: () => void;
 	} = $props();
 </script>
 
 <div class="sr-controls" role="toolbar" aria-label="Music controls">
 	<button
-		aria-label={isPlaying ? 'Pause playback' : 'Start playback'}
+		aria-label={isPlaying ? 'Pause generative music' : 'Play generative music'}
 		aria-pressed={isPlaying}
 		onclick={onplayPause}
 	>
@@ -30,15 +26,7 @@
 	</button>
 
 	<button
-		aria-label={generativeActive ? 'Stop generative mode' : 'Start generative mode'}
-		aria-pressed={generativeActive}
-		onclick={onToggleGenerative}
-	>
-		Generative
-	</button>
-
-	<button
-		aria-label={natureActive ? 'Stop nature sounds' : 'Start nature sounds'}
+		aria-label={natureActive ? 'Disable nature sounds' : 'Enable nature sounds'}
 		aria-pressed={natureActive}
 		onclick={onToggleNature}
 	>
@@ -56,7 +44,7 @@
 		width: 1px;
 		height: 1px;
 		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
+		clip-path: inset(50%);
 		white-space: nowrap;
 		border: 0;
 	}
@@ -68,7 +56,7 @@
 		transform: translateX(-50%);
 		width: auto;
 		height: auto;
-		clip: auto;
+		clip-path: none;
 		z-index: 50;
 		display: flex;
 		gap: var(--space-md);
@@ -88,7 +76,7 @@
 		cursor: pointer;
 	}
 
-	button:focus {
+	button:focus-visible {
 		outline: 2px solid var(--color-accent);
 		outline-offset: 2px;
 	}

@@ -24,7 +24,7 @@
 		aria-valuenow={uiState.bpm}
 		aria-valuetext="{uiState.bpm} BPM"
 	/>
-	<span class="tempo-display">{uiState.bpm}</span>
+	<span class="tempo-display">{uiState.bpm} <abbr title="beats per minute">bpm</abbr></span>
 </div>
 
 <style>
@@ -45,21 +45,27 @@
 		outline: none;
 	}
 
+	input[type="range"]:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 4px;
+		border-radius: 2px;
+	}
+
 	input[type="range"]::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		appearance: none;
-		width: 16px;
-		height: 16px;
+		width: 18px;
+		height: 18px;
 		border-radius: 50%;
 		background: var(--color-accent);
 		cursor: pointer;
 		border: none;
-		box-shadow: 0 0 6px rgba(246, 230, 187, 0.3);
+		box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 40%, transparent);
 	}
 
 	input[type="range"]::-moz-range-thumb {
-		width: 16px;
-		height: 16px;
+		width: 18px;
+		height: 18px;
 		border-radius: 50%;
 		background: var(--color-accent);
 		cursor: pointer;
@@ -69,8 +75,14 @@
 	.tempo-display {
 		font-size: 12px;
 		color: var(--text-secondary);
-		min-width: 28px;
+		min-width: 48px;
 		text-align: center;
 		font-variant-numeric: tabular-nums;
+	}
+
+	abbr {
+		text-decoration: none;
+		font-size: 10px;
+		opacity: 0.7;
 	}
 </style>

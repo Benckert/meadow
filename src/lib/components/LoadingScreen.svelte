@@ -8,20 +8,20 @@
 			<!-- Stem -->
 			<line
 				x1="50" y1="90" x2="50" y2="40"
-				stroke="#41915B" stroke-width="2" stroke-linecap="round"
+				stroke="var(--color-secondary)" stroke-width="2" stroke-linecap="round"
 				class="stem"
 			/>
 			<!-- Leaves -->
 			<path
 				d="M50 65 Q35 55 40 40 Q50 50 50 65"
-				fill="#155435" class="leaf leaf-left"
+				fill="var(--color-primary)" class="leaf leaf-left"
 			/>
 			<path
 				d="M50 55 Q65 45 60 30 Q50 40 50 55"
-				fill="#41915B" class="leaf leaf-right"
+				fill="var(--color-secondary)" class="leaf leaf-right"
 			/>
 			<!-- Glow -->
-			<circle cx="50" cy="35" r="4" fill="#F6E6BB" class="glow">
+			<circle cx="50" cy="35" r="4" fill="var(--color-accent)" class="glow">
 				<animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
 			</circle>
 		</svg>
@@ -36,7 +36,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #102C26;
+		background: var(--bg-primary);
 		animation: fade-out 0.5s ease-out 2s forwards;
 	}
 
@@ -75,5 +75,21 @@
 
 	@keyframes fade-out {
 		to { opacity: 0; pointer-events: none; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.stem {
+			stroke-dashoffset: 0;
+			animation: none;
+		}
+
+		.leaf {
+			opacity: 1;
+			animation: none;
+		}
+
+		.loading-screen {
+			animation: fade-out 0.3s ease-out 0.5s forwards;
+		}
 	}
 </style>

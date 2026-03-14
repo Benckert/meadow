@@ -13,11 +13,11 @@
 	let unlocked = $state(new Set<string>());
 	let latestUnlock = $state('');
 
-	const THRESHOLDS: [string, () => boolean][] = [
-		['controls', () => notesPlayed >= 1],
-		['scale-selector', () => notesPlayed >= 30],
-		['generative', () => elapsed() >= 60],
-		['nature-sounds', () => elapsed() >= 120]
+	const THRESHOLDS: [string, string, () => boolean][] = [
+		['controls', 'Controls unlocked', () => notesPlayed >= 1],
+		['scale-selector', 'Scales available', () => notesPlayed >= 30],
+		['generative', 'Generative mode ready', () => elapsed() >= 60],
+		['nature-sounds', 'Nature sounds ready', () => elapsed() >= 120]
 	];
 
 	function elapsed(): number {
@@ -25,17 +25,16 @@
 	}
 
 	function checkUnlocks(): void {
-		for (const [feature, condition] of THRESHOLDS) {
+		for (const [feature, label, condition] of THRESHOLDS) {
 			if (!unlocked.has(feature) && condition()) {
 				unlocked.add(feature);
 				unlocked = new Set(unlocked);
-				latestUnlock = feature;
+				latestUnlock = label;
 				onunlock?.(feature);
 
-				// Clear notification after a moment
 				setTimeout(() => {
-					if (latestUnlock === feature) latestUnlock = '';
-				}, 2000);
+					if (latestUnlock === label) latestUnlock = '';
+				}, 2500);
 			}
 		}
 	}
@@ -49,7 +48,6 @@
 		startTime = Date.now();
 		eventBus.on('note:trigger', onNote);
 
-		// Check time-based unlocks periodically
 		const interval = setInterval(checkUnlocks, 5000);
 
 		return () => clearInterval(interval);
@@ -65,8 +63,9 @@
 </script>
 
 {#if latestUnlock}
-	<div class="unlock-notification" role="status">
+	<div class="unlock-notification" role="status" aria-live="polite">
 		<div class="unlock-glow"></div>
+		<span class="unlock-text">{latestUnlock}</span>
 	</div>
 {/if}
 
@@ -77,21 +76,49 @@
 		right: var(--space-xl);
 		z-index: 30;
 		pointer-events: none;
-		animation: fade-in-out 2s ease-in-out;
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		padding: var(--space-md) var(--space-lg);
+		background: var(--glass-bg);
+		backdrop-filter: blur(var(--glass-blur));
+		border: 1px solid var(--glass-border);
+		border-radius: 12px;
+		animation: unlock-appear 2.5s ease-in-out forwards;
 	}
 
 	.unlock-glow {
-		width: 12px;
-		height: 12px;
+		width: 8px;
+		height: 8px;
 		border-radius: 50%;
 		background: var(--color-accent);
-		box-shadow: 0 0 20px var(--color-accent);
+		box-shadow: 0 0 12px var(--color-accent);
+		flex-shrink: 0;
 	}
 
-	@keyframes fade-in-out {
-		0% { opacity: 0; transform: scale(0.5); }
-		20% { opacity: 1; transform: scale(1); }
-		80% { opacity: 1; }
+	.unlock-text {
+		font-size: 12px;
+		color: var(--text-primary);
+		white-space: nowrap;
+	}
+
+	@keyframes unlock-appear {
+		0% { opacity: 0; transform: translateY(-8px); }
+		15% { opacity: 1; transform: translateY(0); }
+		75% { opacity: 1; }
 		100% { opacity: 0; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.unlock-notification {
+			animation: unlock-appear-simple 2.5s ease-in-out forwards;
+		}
+
+		@keyframes unlock-appear-simple {
+			0% { opacity: 0; }
+			15% { opacity: 1; }
+			75% { opacity: 1; }
+			100% { opacity: 0; }
+		}
 	}
 </style>

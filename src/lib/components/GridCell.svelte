@@ -39,6 +39,11 @@
 		background: rgba(255, 255, 255, 0.08);
 	}
 
+	.grid-cell:active {
+		background: rgba(255, 255, 255, 0.15);
+		transform: scale(0.95);
+	}
+
 	.grid-cell.active {
 		background: var(--color-accent);
 		box-shadow: 0 0 20px var(--color-accent), inset 0 0 10px rgba(255, 255, 255, 0.2);

@@ -21,6 +21,7 @@
 	class:active
 	aria-label={label}
 	aria-pressed={active}
+	title={label}
 	{onclick}
 >
 	<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
@@ -55,11 +56,20 @@
 		border-color: rgba(255, 255, 255, 0.2);
 	}
 
+	.icon-button:active {
+		transform: scale(0.95);
+	}
+
 	.icon-button.active {
 		background: rgba(255, 255, 255, 0.15);
 		color: var(--color-accent);
 		border-color: var(--color-accent);
-		box-shadow: 0 0 12px rgba(246, 230, 187, 0.15);
+		box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 25%, transparent);
+	}
+
+	.icon-button:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
 	}
 
 	.icon-button:active .ripple {
@@ -86,5 +96,11 @@
 
 	svg {
 		pointer-events: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.icon-button:active .ripple {
+			animation: none;
+		}
 	}
 </style>

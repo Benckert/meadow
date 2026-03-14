@@ -70,4 +70,9 @@
 	.theme-swatch:hover {
 		transform: scale(1.15);
 	}
+
+	.theme-swatch:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
+	}
 </style>

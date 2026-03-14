@@ -37,6 +37,7 @@
 		aria-valuemin={0}
 		aria-valuemax={1}
 		aria-valuenow={volume}
+		aria-valuetext="{Math.round(volume * 100)}%"
 	/>
 </div>
 
@@ -62,11 +63,17 @@
 		outline: none;
 	}
 
+	input[type="range"]:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 4px;
+		border-radius: 2px;
+	}
+
 	input[type="range"]::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		appearance: none;
-		width: 14px;
-		height: 14px;
+		width: 16px;
+		height: 16px;
 		border-radius: 50%;
 		background: var(--color-accent);
 		cursor: pointer;
@@ -74,8 +81,8 @@
 	}
 
 	input[type="range"]::-moz-range-thumb {
-		width: 14px;
-		height: 14px;
+		width: 16px;
+		height: 16px;
 		border-radius: 50%;
 		background: var(--color-accent);
 		cursor: pointer;

@@ -82,6 +82,14 @@ export class VisualRenderer {
 		this.sceneManager.setTheme(themeId);
 	}
 
+	setQuality(level: 'high' | 'medium' | 'low'): void {
+		this.postProcessing.setQuality(level);
+		// Reduce pixel ratio on low quality
+		const maxPixelRatio = level === 'low' ? 1 : level === 'medium' ? 1.5 : 2;
+		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
+		this.resize();
+	}
+
 	get scene(): THREE.Scene {
 		return this.sceneManager.scene;
 	}

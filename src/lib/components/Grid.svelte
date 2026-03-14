@@ -35,7 +35,7 @@
 		setTimeout(() => {
 			activeCells.delete(key);
 			activeCells = new Map(activeCells);
-		}, 200);
+		}, 350);
 	}
 
 	onMount(() => {
@@ -79,6 +79,15 @@
 		width: 100%;
 		height: 100%;
 		padding: var(--space-lg);
+		padding-bottom: 100px; /* Space for control panel */
 		touch-action: none;
+	}
+
+	@media (max-width: 640px) {
+		.grid-container {
+			gap: 2px;
+			padding: var(--space-sm);
+			padding-bottom: 90px;
+		}
 	}
 </style>

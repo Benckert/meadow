@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import IconButton from './IconButton.svelte';
 	import ThemePicker from './ThemePicker.svelte';
 	import TempoSlider from './TempoSlider.svelte';
@@ -7,20 +8,16 @@
 
 	let {
 		isPlaying = false,
-		generativeActive = false,
 		natureActive = false,
 		onplayPause,
-		onToggleGenerative,
 		onToggleNature,
 		onTempoChange,
 		onScaleChange,
 		onVolumeChange
 	}: {
 		isPlaying?: boolean;
-		generativeActive?: boolean;
 		natureActive?: boolean;
 		onplayPause?: () => void;
-		onToggleGenerative?: () => void;
 		onToggleNature?: () => void;
 		onTempoChange?: (bpm: number) => void;
 		onScaleChange?: (scale: string) => void;
@@ -29,6 +26,7 @@
 
 	let showThemes = $state(false);
 	let showScales = $state(false);
+	let panelElement: HTMLElement;
 
 	function toggleThemes(): void {
 		showThemes = !showThemes;
@@ -39,26 +37,35 @@
 		showScales = !showScales;
 		showThemes = false;
 	}
+
+	function handleClickOutside(e: MouseEvent): void {
+		if (panelElement && !panelElement.contains(e.target as Node)) {
+			showThemes = false;
+			showScales = false;
+		}
+	}
+
+	onMount(() => {
+		document.addEventListener('pointerdown', handleClickOutside);
+	});
+
+	onDestroy(() => {
+		document.removeEventListener('pointerdown', handleClickOutside);
+	});
 </script>
 
-<div class="control-panel">
+<div class="control-panel" bind:this={panelElement}>
 	<div class="controls-row">
 		<IconButton
 			icon={isPlaying ? 'pause' : 'play'}
 			active={isPlaying}
-			label={isPlaying ? 'Pause' : 'Play'}
+			label={isPlaying ? 'Pause generative music' : 'Play generative music'}
 			onclick={onplayPause}
-		/>
-		<IconButton
-			icon="generative"
-			active={generativeActive}
-			label="Generative mode"
-			onclick={onToggleGenerative}
 		/>
 		<IconButton
 			icon="nature"
 			active={natureActive}
-			label="Nature sounds"
+			label={natureActive ? 'Disable nature sounds' : 'Enable nature sounds'}
 			onclick={onToggleNature}
 		/>
 		<div class="separator"></div>
@@ -68,29 +75,27 @@
 		<IconButton
 			icon="palette"
 			active={showThemes}
-			label="Theme"
+			label="Choose theme"
 			onclick={toggleThemes}
 		/>
 		<IconButton
 			icon="scale"
 			active={showScales}
-			label="Scale"
+			label="Choose scale"
 			onclick={toggleScales}
 		/>
 	</div>
 
-	<div class="popover-area">
-		{#if showThemes}
-			<div class="popover">
+	{#if showThemes || showScales}
+		<div class="popover">
+			{#if showThemes}
 				<ThemePicker visible={true} />
-			</div>
-		{/if}
-		{#if showScales}
-			<div class="popover">
+			{/if}
+			{#if showScales}
 				<ScaleSelector visible={true} onchange={(s) => { onScaleChange?.(s); showScales = false; }} />
-			</div>
-		{/if}
-	</div>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -104,6 +109,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: var(--space-md);
+		animation: slide-up 400ms ease-out;
 	}
 
 	.controls-row {
@@ -126,16 +132,28 @@
 		margin: 0 var(--space-xs);
 	}
 
-	.popover-area {
-		position: relative;
-	}
-
 	.popover {
 		position: absolute;
-		bottom: 100%;
+		bottom: calc(100% + var(--space-md));
 		left: 50%;
 		transform: translateX(-50%);
-		margin-bottom: var(--space-md);
+		animation: fade-in 200ms ease-out;
+	}
+
+	@keyframes slide-up {
+		from {
+			opacity: 0;
+			transform: translateX(-50%) translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(-50%) translateY(0);
+		}
+	}
+
+	@keyframes fade-in {
+		from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+		to { opacity: 1; transform: translateX(-50%) translateY(0); }
 	}
 
 	@media (max-width: 640px) {
@@ -147,6 +165,16 @@
 
 		.separator {
 			display: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.control-panel {
+			animation: none;
+		}
+
+		.popover {
+			animation: none;
 		}
 	}
 </style>

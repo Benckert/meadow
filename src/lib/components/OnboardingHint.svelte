@@ -18,14 +18,27 @@
 			localStorage.setItem(STORAGE_KEY, '1');
 		}
 	}
+
+	function handleKeydown(e: KeyboardEvent): void {
+		if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+			e.preventDefault();
+			dismiss();
+		}
+	}
 </script>
 
 {#if visible}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="onboarding-hint" onclick={dismiss}>
+	<div
+		class="onboarding-hint"
+		role="button"
+		tabindex="0"
+		aria-label="Tap the grid to play notes. Press Enter or click to dismiss."
+		onclick={dismiss}
+		onkeydown={handleKeydown}
+	>
 		<div class="hint-ring"></div>
 		<div class="hint-ring hint-ring-2"></div>
+		<span class="hint-text">tap the grid to play</span>
 	</div>
 {/if}
 
@@ -38,6 +51,16 @@
 		z-index: 15;
 		pointer-events: auto;
 		cursor: pointer;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-lg);
+	}
+
+	.onboarding-hint:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 8px;
+		border-radius: 8px;
 	}
 
 	.hint-ring {
@@ -56,8 +79,22 @@
 		animation-delay: 0.5s;
 	}
 
+	.hint-text {
+		color: var(--text-secondary);
+		font-size: 13px;
+		letter-spacing: 0.05em;
+		white-space: nowrap;
+	}
+
 	@keyframes hint-pulse {
 		0%, 100% { opacity: 0.6; transform: scale(1); }
 		50% { opacity: 0.2; transform: scale(1.2); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hint-ring {
+			animation: none;
+			opacity: 0.6;
+		}
 	}
 </style>

@@ -11,12 +11,11 @@
 	import { GenerativeController } from '$lib/engine/audio/generative-controller';
 	import { NatureController } from '$lib/engine/audio/nature/nature-controller';
 	import { NatureParticles } from '$lib/engine/visual/nature-particles';
-	import { FlowField } from '$lib/engine/visual/flow-field';
 	import { QualityManager } from '$lib/engine/visual/quality-manager';
 	import { mapGridToNotes } from '$lib/engine/audio/scales';
 	import { eventBus } from '$lib/stores/event-bus';
 	import { uiState } from '$lib/stores/ui-state.svelte';
-	import type { NoteEvent, ThemeId } from '$lib/stores/types';
+	import type { NoteEvent, ThemeId, QualityLevel } from '$lib/stores/types';
 	import { getTheme } from '$lib/themes';
 	import * as Tone from 'tone';
 
@@ -27,7 +26,6 @@
 	let generativeController: GenerativeController;
 	let natureController: NatureController | null = null;
 	let natureParticles: NatureParticles | null = null;
-	let flowField: FlowField;
 	let qualityManager: QualityManager;
 	let running = false;
 	let showControls = $state(false);
@@ -66,10 +64,6 @@
 		}
 	}
 
-	function handleToggleGenerative(): void {
-		handlePlayPause();
-	}
-
 	function handleToggleNature(): void {
 		if (!natureController) return;
 		if (natureActive) {
@@ -106,6 +100,10 @@
 		}
 	}
 
+	function handleQualityChange(level: QualityLevel): void {
+		visualRenderer?.setQuality(level);
+	}
+
 	function handleThemeChange(themeId: ThemeId): void {
 		visualRenderer?.setTheme(themeId);
 		noteVisualizer?.setTheme(themeId);
@@ -120,8 +118,10 @@
 			root.style.setProperty('--color-primary', theme.colors.primary);
 			root.style.setProperty('--color-secondary', theme.colors.secondary);
 			root.style.setProperty('--color-accent', theme.colors.accent);
+			root.style.setProperty('--text-primary', theme.colors.textPrimary);
+			root.style.setProperty('--text-secondary', theme.colors.textSecondary);
 			root.style.setProperty('--glass-bg', theme.colors.glassTint);
-			root.style.setProperty('--glass-border', `rgba(255, 255, 255, 0.12)`);
+			root.style.setProperty('--glass-border', theme.colors.glassBorder);
 		}
 	}
 
@@ -136,7 +136,6 @@
 		);
 
 		generativeController = new GenerativeController();
-		flowField = new FlowField();
 		qualityManager = new QualityManager();
 
 		natureParticles = new NatureParticles(visualRenderer.scene);
@@ -153,7 +152,6 @@
 
 			qualityManager.recordFrame(dtMs);
 			noteVisualizer.update(dt);
-			flowField.update(dt);
 			natureParticles?.update(dt);
 			requestAnimationFrame(animate);
 		}
@@ -161,6 +159,7 @@
 
 		eventBus.on('note:trigger', onNoteTrigger);
 		eventBus.on('theme:change', handleThemeChange);
+		eventBus.on('quality:change', handleQualityChange);
 
 		// Init audio on first user gesture
 		document.addEventListener('pointerdown', onFirstInteraction, { once: true });
@@ -171,6 +170,7 @@
 		running = false;
 		eventBus.off('note:trigger', onNoteTrigger);
 		eventBus.off('theme:change', handleThemeChange);
+		eventBus.off('quality:change', handleQualityChange);
 		if (browser) {
 			document.removeEventListener('pointerdown', onFirstInteraction);
 			document.removeEventListener('keydown', onFirstInteraction);
@@ -197,10 +197,8 @@
 	{#if showControls}
 		<ControlPanel
 			isPlaying={uiState.isPlaying}
-			generativeActive={uiState.isPlaying}
 			{natureActive}
 			onplayPause={handlePlayPause}
-			onToggleGenerative={handleToggleGenerative}
 			onToggleNature={handleToggleNature}
 			onTempoChange={handleTempoChange}
 			onScaleChange={handleScaleChange}
@@ -215,18 +213,17 @@
 		rows={uiState.gridSize[1]}
 		{noteMap}
 		isPlaying={uiState.isPlaying}
-		generativeActive={uiState.isPlaying}
 		{natureActive}
 		bpm={uiState.bpm}
 		scaleName={uiState.activeScale}
 		onplayPause={handlePlayPause}
-		onToggleGenerative={handleToggleGenerative}
 		onToggleNature={handleToggleNature}
 	/>
 
 	{#if !uiState.audioInitialized}
-		<div class="tap-hint">
+		<div class="tap-hint" role="status" aria-label="Tap anywhere to start">
 			<div class="tap-circle"></div>
+			<span class="tap-text">tap to begin</span>
 		</div>
 	{/if}
 </div>
@@ -255,6 +252,7 @@
 		inset: 0;
 		z-index: 10;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		pointer-events: none;
@@ -269,6 +267,15 @@
 		animation: pulse 2s ease-in-out infinite;
 	}
 
+	.tap-text {
+		margin-top: var(--space-lg);
+		color: var(--text-secondary);
+		font-size: 13px;
+		letter-spacing: 0.05em;
+		text-transform: lowercase;
+		animation: pulse 2s ease-in-out infinite;
+	}
+
 	@keyframes pulse {
 		0%, 100% {
 			transform: scale(1);
@@ -277,6 +284,13 @@
 		50% {
 			transform: scale(1.3);
 			opacity: 0.2;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tap-circle, .tap-text {
+			animation: none;
+			opacity: 0.6;
 		}
 	}
 </style>

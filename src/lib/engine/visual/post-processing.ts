@@ -87,6 +87,12 @@ export class PostProcessing {
 		this.bloomPass.resolution.set(width, height);
 	}
 
+	setQuality(level: 'high' | 'medium' | 'low'): void {
+		this.bloomPass.enabled = level !== 'low';
+		this.filmGrainPass.enabled = level === 'high';
+		this.chromaticPass.enabled = level === 'high';
+	}
+
 	dispose(): void {
 		this.composer.dispose();
 	}

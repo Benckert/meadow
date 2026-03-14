@@ -17,6 +17,9 @@ export interface ThemeColors {
 	primary: string;
 	secondary: string;
 	accent: string;
+	textPrimary: string;
+	textSecondary: string;
+	glassBorder: string;
 	particleColors: string[];
 	gridActive: string;
 	gridInactive: string;
