@@ -67,6 +67,42 @@ export function mapGridToNotes(
 	return grid;
 }
 
+/**
+ * Builds a flat array of all notes in a scale across the given octave range.
+ * Returns notes ordered low to high.
+ */
+export function buildNotePool(
+	scaleName: string = 'C major pentatonic',
+	octaveRange: [number, number] = [3, 6]
+): string[] {
+	const preset = getScalePreset(scaleName);
+	const scaleNotes = preset.notes;
+	const pool: string[] = [];
+
+	for (let oct = octaveRange[0]; oct <= octaveRange[1]; oct++) {
+		for (const n of scaleNotes) {
+			pool.push(`${n}${oct}`);
+		}
+	}
+
+	return pool;
+}
+
+/**
+ * Maps a continuous Y position (0 = bottom/low, 1 = top/high) to the
+ * nearest note in the active scale.
+ */
+export function mapContinuousPitch(
+	normalizedY: number,
+	scaleName: string = 'C major pentatonic',
+	octaveRange: [number, number] = [3, 6]
+): { note: string; noteIndex: number } {
+	const pool = buildNotePool(scaleName, octaveRange);
+	const clamped = Math.max(0, Math.min(1, normalizedY));
+	const noteIndex = Math.round(clamped * (pool.length - 1));
+	return { note: pool[noteIndex], noteIndex };
+}
+
 export function getAvailableScales(): string[] {
 	return Object.keys(SCALE_PRESETS);
 }

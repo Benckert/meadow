@@ -1,11 +1,9 @@
 <script lang="ts">
-	import ScreenReaderGrid from './ScreenReaderGrid.svelte';
+	import ScreenReaderPitchLadder from './ScreenReaderPitchLadder.svelte';
 	import ScreenReaderControls from './ScreenReaderControls.svelte';
 
 	let {
-		cols = 16,
-		rows = 5,
-		noteMap = [] as string[][],
+		scaleNotes = [] as string[],
 		isPlaying = false,
 		natureActive = false,
 		bpm = 90,
@@ -13,9 +11,7 @@
 		onplayPause,
 		onToggleNature
 	}: {
-		cols?: number;
-		rows?: number;
-		noteMap?: string[][];
+		scaleNotes?: string[];
 		isPlaying?: boolean;
 		natureActive?: boolean;
 		bpm?: number;
@@ -34,5 +30,5 @@
 		{onplayPause}
 		{onToggleNature}
 	/>
-	<ScreenReaderGrid {cols} {rows} {noteMap} />
+	<ScreenReaderPitchLadder {scaleNotes} />
 </div>

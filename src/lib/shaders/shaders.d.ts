@@ -27,3 +27,13 @@ declare module '$shaders/includes/common.glsl' {
 	const value: string;
 	export default value;
 }
+
+declare module '$shaders/ripple.vert' {
+	const value: string;
+	export default value;
+}
+
+declare module '$shaders/ripple.frag' {
+	const value: string;
+	export default value;
+}

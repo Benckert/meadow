@@ -4,6 +4,10 @@ export interface NoteEvent {
 	duration: string;
 	row: number;
 	col: number;
+	x?: number;
+	y?: number;
+	pan?: number;
+	worldPos?: { x: number; y: number; z: number };
 }
 
 export interface BeatEvent {

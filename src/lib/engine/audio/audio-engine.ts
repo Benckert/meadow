@@ -59,8 +59,8 @@ export class AudioEngine {
 		this.animationFrameId = requestAnimationFrame(pump);
 	}
 
-	triggerNote(note: string, duration: string = '8n', velocity: number = 0.7): void {
-		this.synthesizer?.triggerNote(note, duration, velocity);
+	triggerNote(note: string, duration: string = '8n', velocity: number = 0.7, pan?: number): void {
+		this.synthesizer?.triggerNote(note, duration, velocity, pan);
 	}
 
 	get isInitialized(): boolean {

@@ -32,13 +32,13 @@
 		class="onboarding-hint"
 		role="button"
 		tabindex="0"
-		aria-label="Tap the grid to play notes. Press Enter or click to dismiss."
+		aria-label="Touch anywhere to create sounds. Press Enter or click to dismiss."
 		onclick={dismiss}
 		onkeydown={handleKeydown}
 	>
 		<div class="hint-ring"></div>
 		<div class="hint-ring hint-ring-2"></div>
-		<span class="hint-text">tap the grid to play</span>
+		<span class="hint-text">touch anywhere to play</span>
 	</div>
 {/if}
 

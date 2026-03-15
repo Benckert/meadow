@@ -1,7 +1,7 @@
 import { Sequencer } from './sequencer';
 import { MarkovMelody } from './markov-melody';
 import { CellularRhythm } from './cellular-rhythm';
-import { mapGridToNotes } from './scales';
+import { buildNotePool } from './scales';
 import { eventBus } from '$lib/stores/event-bus';
 import type { NoteEvent } from '$lib/stores/types';
 
@@ -25,9 +25,7 @@ export class GenerativeController {
 	constructor() {
 		this.sequencer = new Sequencer();
 
-		// Build note pool from the default scale
-		const grid = mapGridToNotes(16, 5, 'C major pentatonic');
-		this.notePool = [...new Set(grid.flat())]; // unique notes
+		this.notePool = buildNotePool('C major pentatonic');
 
 		this.markov = new MarkovMelody(this.notePool, 0.5);
 		this.rhythm = new CellularRhythm(16);
@@ -123,8 +121,7 @@ export class GenerativeController {
 	}
 
 	setScale(scaleName: string): void {
-		const grid = mapGridToNotes(16, 5, scaleName);
-		this.notePool = [...new Set(grid.flat())];
+		this.notePool = buildNotePool(scaleName);
 		this.markov.setNotes(this.notePool);
 	}
 

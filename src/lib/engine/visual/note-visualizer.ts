@@ -1,154 +1,139 @@
 import * as THREE from 'three';
 import { eventBus } from '$lib/stores/event-bus';
-import type { NoteEvent, ThemeConfig } from '$lib/stores/types';
+import type { NoteEvent, ThemeId } from '$lib/stores/types';
 import { getTheme } from '$lib/themes';
-import type { ThemeId } from '$lib/stores/types';
+import { RippleSurface } from './ripple-surface';
 
-interface RingBurst {
-	ring: THREE.Mesh;
-	particles: THREE.Points;
+interface ParticleBurst {
+	points: THREE.Points;
+	velocities: { vx: number; vy: number }[];
+	origin: { x: number; y: number };
 	life: number;
 	maxLife: number;
 }
 
-const POOL_SIZE = 20;
+const BURST_POOL_SIZE = 16;
 
 export class NoteVisualizer {
 	private scene: THREE.Scene;
-	private pool: RingBurst[] = [];
-	private active: RingBurst[] = [];
+	readonly rippleSurface: RippleSurface;
+	private burstPool: ParticleBurst[] = [];
+	private activeBursts: ParticleBurst[] = [];
 	private themeColors: THREE.Color[];
 
 	constructor(scene: THREE.Scene, themeId: ThemeId) {
 		this.scene = scene;
 		const theme = getTheme(themeId);
 		this.themeColors = theme.colors.particleColors.map((c) => new THREE.Color(c));
-		this.initPool();
 
+		this.rippleSurface = new RippleSurface(themeId);
+		this.scene.add(this.rippleSurface.mesh);
+
+		this.initBurstPool();
 		eventBus.on('note:trigger', this.onNoteTrigger);
 	}
 
-	private initPool(): void {
-		for (let i = 0; i < POOL_SIZE; i++) {
+	private initBurstPool(): void {
+		for (let i = 0; i < BURST_POOL_SIZE; i++) {
 			const burst = this.createBurst();
-			burst.ring.visible = false;
-			burst.particles.visible = false;
-			this.pool.push(burst);
+			burst.points.visible = false;
+			this.burstPool.push(burst);
 		}
 	}
 
-	private createBurst(): RingBurst {
-		// Ring
-		const ringGeo = new THREE.RingGeometry(0.1, 0.15, 32);
-		const ringMat = new THREE.MeshBasicMaterial({
-			color: 0xffffff,
-			transparent: true,
-			opacity: 1.0,
-			side: THREE.DoubleSide,
-			depthWrite: false
-		});
-		const ring = new THREE.Mesh(ringGeo, ringMat);
-		this.scene.add(ring);
-
-		// Burst particles
-		const count = 12;
+	private createBurst(): ParticleBurst {
+		const count = 8;
 		const positions = new Float32Array(count * 3);
 		const geo = new THREE.BufferGeometry();
 		geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 		const mat = new THREE.PointsMaterial({
 			color: 0xffffff,
-			size: 3,
+			size: 2.5,
 			transparent: true,
 			opacity: 1.0,
 			depthWrite: false,
 			blending: THREE.AdditiveBlending,
 			sizeAttenuation: true
 		});
-		const particles = new THREE.Points(geo, mat);
-		this.scene.add(particles);
+		const points = new THREE.Points(geo, mat);
+		this.scene.add(points);
 
-		return { ring, particles, life: 0, maxLife: 0.8 };
+		return {
+			points,
+			velocities: [],
+			origin: { x: 0, y: 0 },
+			life: 0,
+			maxLife: 1.2
+		};
 	}
 
 	private onNoteTrigger = (event: NoteEvent): void => {
-		const burst = this.pool.pop();
-		if (!burst) return;
+		let wx: number, wy: number;
 
-		// Map grid position to 3D space
-		// Grid is 16x5, map to roughly -12..12 x, -5..5 y
-		const x = ((event.col / 15) - 0.5) * 24;
-		const y = ((event.row / 4) - 0.5) * 10;
+		if (event.worldPos) {
+			wx = event.worldPos.x;
+			wy = event.worldPos.y;
+		} else {
+			// Fallback for generative notes: map row to Y position
+			wx = (Math.random() - 0.5) * 20;
+			wy = ((event.row / 4) - 0.5) * 8;
+		}
+
+		// Add ripple to the water surface
+		const amp = 0.4 + event.velocity * 0.8;
+		this.rippleSurface.addRipple(wx, wy, amp);
+
+		// Spawn subtle particle burst accent
+		const burst = this.burstPool.pop();
+		if (!burst) return;
 
 		const color = this.themeColors[Math.floor(Math.random() * this.themeColors.length)];
 
-		// Position ring
-		burst.ring.position.set(x, y, 0);
-		burst.ring.scale.set(1, 1, 1);
-		(burst.ring.material as THREE.MeshBasicMaterial).color.copy(color);
-		(burst.ring.material as THREE.MeshBasicMaterial).opacity = 1.0;
-		burst.ring.visible = true;
-
-		// Set burst particle positions
-		const positions = burst.particles.geometry.attributes.position as THREE.BufferAttribute;
-		for (let i = 0; i < positions.count; i++) {
-			const angle = (i / positions.count) * Math.PI * 2;
-			positions.setXYZ(i, x, y, 0);
-		}
-		positions.needsUpdate = true;
-		burst.particles.position.set(0, 0, 0);
-		(burst.particles.material as THREE.PointsMaterial).color.copy(color);
-		(burst.particles.material as THREE.PointsMaterial).opacity = 1.0;
-		burst.particles.visible = true;
-
-		// Store initial position and velocity in userData
-		burst.ring.userData = { originX: x, originY: y };
+		const positions = burst.points.geometry.attributes.position as THREE.BufferAttribute;
 		const vels: { vx: number; vy: number }[] = [];
 		for (let i = 0; i < positions.count; i++) {
-			const angle = (i / positions.count) * Math.PI * 2;
+			const angle = (i / positions.count) * Math.PI * 2 + Math.random() * 0.3;
+			positions.setXYZ(i, wx, wy, 0);
 			vels.push({
-				vx: Math.cos(angle) * (2 + Math.random() * 2),
-				vy: Math.sin(angle) * (2 + Math.random() * 2)
+				vx: Math.cos(angle) * (1.5 + Math.random() * 1.5),
+				vy: Math.sin(angle) * (1.5 + Math.random() * 1.5)
 			});
 		}
-		burst.particles.userData = { velocities: vels };
+		positions.needsUpdate = true;
+		burst.velocities = vels;
+		burst.origin = { x: wx, y: wy };
 
+		(burst.points.material as THREE.PointsMaterial).color.copy(color);
+		(burst.points.material as THREE.PointsMaterial).opacity = 0.8;
+		burst.points.visible = true;
 		burst.life = burst.maxLife;
-		this.active.push(burst);
+		this.activeBursts.push(burst);
 	};
 
 	update(deltaTime: number): void {
-		for (let i = this.active.length - 1; i >= 0; i--) {
-			const burst = this.active[i];
+		this.rippleSurface.update(deltaTime);
+
+		for (let i = this.activeBursts.length - 1; i >= 0; i--) {
+			const burst = this.activeBursts[i];
 			burst.life -= deltaTime;
+			const t = 1 - burst.life / burst.maxLife;
 
-			const t = 1 - burst.life / burst.maxLife; // 0 to 1
-
-			// Expand ring
-			const scale = 1 + t * 4;
-			burst.ring.scale.set(scale, scale, 1);
-			(burst.ring.material as THREE.MeshBasicMaterial).opacity = 1 - t;
-
-			// Expand burst particles
-			const positions = burst.particles.geometry.attributes.position as THREE.BufferAttribute;
-			const vels = burst.particles.userData.velocities as { vx: number; vy: number }[];
-			const ox = burst.ring.userData.originX;
-			const oy = burst.ring.userData.originY;
+			const positions = burst.points.geometry.attributes.position as THREE.BufferAttribute;
 			for (let j = 0; j < positions.count; j++) {
 				positions.setXYZ(
 					j,
-					ox + vels[j].vx * t,
-					oy + vels[j].vy * t,
+					burst.origin.x + burst.velocities[j].vx * t,
+					burst.origin.y + burst.velocities[j].vy * t,
 					0
 				);
 			}
 			positions.needsUpdate = true;
-			(burst.particles.material as THREE.PointsMaterial).opacity = 1 - t;
+			(burst.points.material as THREE.PointsMaterial).opacity = 0.8 * (1 - t);
 
 			if (burst.life <= 0) {
-				burst.ring.visible = false;
-				burst.particles.visible = false;
-				this.active.splice(i, 1);
-				this.pool.push(burst);
+				burst.points.visible = false;
+				this.activeBursts.splice(i, 1);
+				this.burstPool.push(burst);
 			}
 		}
 	}
@@ -156,17 +141,17 @@ export class NoteVisualizer {
 	setTheme(themeId: ThemeId): void {
 		const theme = getTheme(themeId);
 		this.themeColors = theme.colors.particleColors.map((c) => new THREE.Color(c));
+		this.rippleSurface.setTheme(themeId);
 	}
 
 	dispose(): void {
 		eventBus.off('note:trigger', this.onNoteTrigger);
-		for (const burst of [...this.pool, ...this.active]) {
-			burst.ring.geometry.dispose();
-			(burst.ring.material as THREE.Material).dispose();
-			burst.particles.geometry.dispose();
-			(burst.particles.material as THREE.Material).dispose();
-			this.scene.remove(burst.ring);
-			this.scene.remove(burst.particles);
+		this.rippleSurface.dispose();
+		this.scene.remove(this.rippleSurface.mesh);
+		for (const burst of [...this.burstPool, ...this.activeBursts]) {
+			burst.points.geometry.dispose();
+			(burst.points.material as THREE.Material).dispose();
+			this.scene.remove(burst.points);
 		}
 	}
 }

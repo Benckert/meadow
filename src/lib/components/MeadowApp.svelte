@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import Grid from './Grid.svelte';
 	import ControlPanel from './ControlPanel.svelte';
 	import FeatureUnlock from './FeatureUnlock.svelte';
 	import AccessibilityLayer from './AccessibilityLayer.svelte';
 	import { AudioEngine } from '$lib/engine/audio/audio-engine';
 	import { VisualRenderer } from '$lib/engine/visual/renderer';
 	import { NoteVisualizer } from '$lib/engine/visual/note-visualizer';
+	import { RippleInputHandler } from '$lib/engine/audio/ripple-input-handler';
 	import { GenerativeController } from '$lib/engine/audio/generative-controller';
 	import { NatureController } from '$lib/engine/audio/nature/nature-controller';
 	import { NatureParticles } from '$lib/engine/visual/nature-particles';
 	import { QualityManager } from '$lib/engine/visual/quality-manager';
-	import { mapGridToNotes } from '$lib/engine/audio/scales';
+	import { buildNotePool } from '$lib/engine/audio/scales';
 	import { eventBus } from '$lib/stores/event-bus';
 	import { uiState } from '$lib/stores/ui-state.svelte';
 	import type { NoteEvent, ThemeId, QualityLevel } from '$lib/stores/types';
@@ -23,6 +23,7 @@
 	let audioEngine: AudioEngine;
 	let visualRenderer: VisualRenderer;
 	let noteVisualizer: NoteVisualizer;
+	let rippleInput: RippleInputHandler;
 	let generativeController: GenerativeController;
 	let natureController: NatureController | null = null;
 	let natureParticles: NatureParticles | null = null;
@@ -31,15 +32,13 @@
 	let showControls = $state(false);
 	let natureActive = $state(false);
 
-	// Build note map for accessibility layer
-	const noteMap = $derived(mapGridToNotes(uiState.gridSize[0], uiState.gridSize[1], uiState.activeScale));
+	const scaleNotes = $derived(buildNotePool(uiState.activeScale));
 
 	async function initAudio(): Promise<void> {
 		if (uiState.audioInitialized) return;
 		await audioEngine.init();
 		uiState.audioInitialized = true;
 
-		// Now that audio is initialized, create nature controller
 		natureController = new NatureController(
 			Tone.getDestination() as unknown as Tone.InputNode,
 			uiState.currentTheme
@@ -47,7 +46,7 @@
 	}
 
 	function onNoteTrigger(event: NoteEvent): void {
-		audioEngine.triggerNote(event.note, event.duration, event.velocity);
+		audioEngine.triggerNote(event.note, event.duration, event.velocity, event.pan);
 	}
 
 	function onFirstInteraction(): void {
@@ -73,7 +72,6 @@
 			natureActive = false;
 		} else {
 			natureController.start();
-			// Enable visual effects based on theme
 			natureParticles?.enableWind(true);
 			if (uiState.currentTheme === 'ocean-depths') {
 				natureParticles?.enableRain(true);
@@ -88,6 +86,7 @@
 
 	function handleScaleChange(scale: string): void {
 		generativeController?.setScale(scale);
+		rippleInput?.setScale(scale);
 	}
 
 	function handleVolumeChange(vol: number): void {
@@ -109,7 +108,6 @@
 		noteVisualizer?.setTheme(themeId);
 		natureController?.setTheme(themeId);
 
-		// Update CSS custom properties
 		if (browser) {
 			const theme = getTheme(themeId);
 			const root = document.documentElement;
@@ -135,12 +133,15 @@
 			uiState.currentTheme
 		);
 
+		rippleInput = new RippleInputHandler();
+		rippleInput.bind(visualRenderer);
+		rippleInput.setScale(uiState.activeScale);
+
 		generativeController = new GenerativeController();
 		qualityManager = new QualityManager();
 
 		natureParticles = new NatureParticles(visualRenderer.scene);
 
-		// Main animation loop with quality monitoring
 		running = true;
 		let lastTime = performance.now();
 		function animate(): void {
@@ -161,7 +162,6 @@
 		eventBus.on('theme:change', handleThemeChange);
 		eventBus.on('quality:change', handleQualityChange);
 
-		// Init audio on first user gesture
 		document.addEventListener('pointerdown', onFirstInteraction, { once: true });
 		document.addEventListener('keydown', onFirstInteraction, { once: true });
 	});
@@ -175,6 +175,7 @@
 			document.removeEventListener('pointerdown', onFirstInteraction);
 			document.removeEventListener('keydown', onFirstInteraction);
 		}
+		rippleInput?.dispose();
 		natureParticles?.dispose();
 		natureController?.dispose();
 		generativeController?.dispose();
@@ -186,13 +187,6 @@
 
 <div class="meadow-app">
 	<div class="canvas-layer" bind:this={canvasContainer}></div>
-	<div class="grid-layer">
-		<Grid
-			cols={uiState.gridSize[0]}
-			rows={uiState.gridSize[1]}
-			scaleName={uiState.activeScale}
-		/>
-	</div>
 
 	{#if showControls}
 		<ControlPanel
@@ -209,9 +203,7 @@
 	<FeatureUnlock onunlock={handleFeatureUnlock} />
 
 	<AccessibilityLayer
-		cols={uiState.gridSize[0]}
-		rows={uiState.gridSize[1]}
-		{noteMap}
+		{scaleNotes}
 		isPlaying={uiState.isPlaying}
 		{natureActive}
 		bpm={uiState.bpm}
@@ -223,7 +215,7 @@
 	{#if !uiState.audioInitialized}
 		<div class="tap-hint" role="status" aria-label="Tap anywhere to start">
 			<div class="tap-circle"></div>
-			<span class="tap-text">tap to begin</span>
+			<span class="tap-text">touch the surface</span>
 		</div>
 	{/if}
 </div>
@@ -239,12 +231,6 @@
 	.canvas-layer {
 		position: absolute;
 		inset: 0;
-	}
-
-	.grid-layer {
-		position: absolute;
-		inset: 0;
-		z-index: 1;
 	}
 
 	.tap-hint {
